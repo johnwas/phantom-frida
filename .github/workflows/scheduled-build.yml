@@ -147,10 +147,12 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release
+        id: create_release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.version.outputs.version }}-$(date +%Y%m%d)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           TITLE="Stealth Build — ${{ steps.random.outputs.name }} (Frida ${{ steps.version.outputs.version }})"
           cat > /tmp/release.md <<RELEASE_EOF
           ## Stealth Frida Server
@@ -185,6 +187,20 @@ jobs:
             --title "$TITLE" \
             --notes-file /tmp/release.md \
             --latest
+
+      - name: Notify magisk-frida
+        if: vars.MAGISK_FRIDA_REPO != ''
+        env:
+          GH_TOKEN: ${{ secrets.MAGISK_FRIDA_TOKEN }}
+          MAGISK_FRIDA_REPO: ${{ vars.MAGISK_FRIDA_REPO }}
+          PHANTOM_TAG: ${{ steps.create_release.outputs.tag }}
+          FRIDA_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh api repos/$MAGISK_FRIDA_REPO/dispatches \
+            --method POST \
+            -f event_type=phantom-frida-release \
+            -f client_payload[frida_version]="$FRIDA_VERSION" \
+            -f client_payload[phantom_tag]="$PHANTOM_TAG"
 
       - name: Build summary
         run: |
