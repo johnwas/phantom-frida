@@ -1,9 +1,9 @@
-name: Weekly Stealth Build
+name: Daily Stealth Build
 
 on:
   schedule:
-    # Every Sunday at 03:00 UTC
-    - cron: '0 3 * * 0'
+    # Every day at 03:00 UTC
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       frida_version:
@@ -24,10 +24,11 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
-
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,10 +39,38 @@ jobs:
           if [ -n "${{ inputs.frida_version }}" ]; then
             VERSION="${{ inputs.frida_version }}"
           else
-            VERSION=$(curl -s https://api.github.com/repos/frida/frida/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
+            VERSION=$(curl -s https://api.github.com/repos/frida/frida/releases/latest \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Frida version: $VERSION"
+
+      - name: Check if already built
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          EXISTING=$(gh release list --limit 100 --json tagName \
+            --jq ".[] | select(.tagName | startswith(\"v$VERSION-\")) | .tagName" \
+            | head -1)
+          if [ -n "$EXISTING" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already released as $EXISTING, skipping build."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Version $VERSION not yet built, proceeding."
+          fi
+
+  build:
+    needs: check
+    if: needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Generate random name and port
         id: random
@@ -83,12 +112,12 @@ jobs:
         id: frida-cache
         with:
           path: build/frida
-          key: frida-${{ steps.version.outputs.version }}-source
+          key: frida-${{ needs.check.outputs.version }}-source
 
       - name: Clone Frida
         if: steps.frida-cache.outputs.cache-hit != 'true'
         run: |
-          git clone --recurse-submodules --branch ${{ steps.version.outputs.version }} --depth 1 \
+          git clone --recurse-submodules --branch ${{ needs.check.outputs.version }} --depth 1 \
             https://github.com/frida/frida.git build/frida
 
       - name: Prepare fresh source from cache
@@ -103,7 +132,7 @@ jobs:
       - name: Build
         run: |
           python3 build.py \
-            --version ${{ steps.version.outputs.version }} \
+            --version ${{ needs.check.outputs.version }} \
             --name ${{ steps.random.outputs.name }} \
             --arch ${{ inputs.arch || 'android-arm64' }} \
             --port ${{ steps.random.outputs.port }} \
@@ -118,7 +147,7 @@ jobs:
           {
             "name": "${{ steps.random.outputs.name }}",
             "port": ${{ steps.random.outputs.port }},
-            "version": "${{ steps.version.outputs.version }}",
+            "version": "${{ needs.check.outputs.version }}",
             "arch": "${{ inputs.arch || 'android-arm64' }}",
             "date": "$(date -u +%Y-%m-%d)"
           }
@@ -140,7 +169,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: stealth-${{ steps.random.outputs.name }}-${{ steps.version.outputs.version }}
+          name: stealth-${{ steps.random.outputs.name }}-${{ needs.check.outputs.version }}
           path: |
             output/*.gz
             output/build-info.json
@@ -151,15 +180,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ steps.version.outputs.version }}-$(date +%Y%m%d)"
+          TAG="v${{ needs.check.outputs.version }}-$(date +%Y%m%d)"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          TITLE="Stealth Build — ${{ steps.random.outputs.name }} (Frida ${{ steps.version.outputs.version }})"
+          TITLE="Stealth Build — ${{ steps.random.outputs.name }} (Frida ${{ needs.check.outputs.version }})"
           cat > /tmp/release.md <<RELEASE_EOF
           ## Stealth Frida Server
 
           | Parameter | Value |
           |-----------|-------|
-          | Frida version | ${{ steps.version.outputs.version }} |
+          | Frida version | ${{ needs.check.outputs.version }} |
           | Custom name | \`${{ steps.random.outputs.name }}\` |
           | Custom port | \`${{ steps.random.outputs.port }}\` |
           | Architecture | \`${{ inputs.arch || 'android-arm64' }}\` |
@@ -194,7 +223,7 @@ jobs:
           GH_TOKEN: ${{ secrets.MAGISK_FRIDA_TOKEN }}
           MAGISK_FRIDA_REPO: ${{ vars.MAGISK_FRIDA_REPO }}
           PHANTOM_TAG: ${{ steps.create_release.outputs.tag }}
-          FRIDA_VERSION: ${{ steps.version.outputs.version }}
+          FRIDA_VERSION: ${{ needs.check.outputs.version }}
         run: |
           gh api repos/$MAGISK_FRIDA_REPO/dispatches \
             --method POST \
@@ -204,11 +233,11 @@ jobs:
 
       - name: Build summary
         run: |
-          echo "## Weekly Stealth Build" >> $GITHUB_STEP_SUMMARY
+          echo "## Daily Stealth Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Frida version | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frida version | ${{ needs.check.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Custom name | ${{ steps.random.outputs.name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Custom port | ${{ steps.random.outputs.port }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Architecture | ${{ inputs.arch || 'android-arm64' }} |" >> $GITHUB_STEP_SUMMARY
