@@ -217,6 +217,11 @@ jobs:
             --notes-file /tmp/release.md \
             --latest
 
+      - name: Debug vars
+        run: |
+          echo "MAGISK_FRIDA_REPO=${{ vars.MAGISK_FRIDA_REPO }}"
+          echo "MAGISK_FRIDA_TOKEN set=${{ secrets.MAGISK_FRIDA_TOKEN != '' }}"
+
       - name: Notify magisk-frida
         if: vars.MAGISK_FRIDA_REPO != ''
         env:
