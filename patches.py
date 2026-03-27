@@ -39,6 +39,13 @@ def get_source_patches(name: str, cap_name: str) -> list[tuple[str, str]]:
         # Must rename to prevent binary sweep from corrupting DEX, and to hide
         # the "re.frida.helper" process name which is a detection vector.
         # Order: most specific first
+        #
+        # JNI slash-notation: linux-host-session.vala uses find_class(env, "re/frida/HelperBackend")
+        # to look up the backend class at runtime. The DEX is rebuilt with the renamed package
+        # (re/{name}/HelperBackend), so the JNI lookup string must also be renamed here.
+        # Without this patch, find_class returns null → assert (backend_class != null) fires.
+        ("re/frida/HelperBackend", f"re/{name}/HelperBackend"),
+        # Dot-notation patches for Java source files and Vala string literals
         ("re.frida.Helper", f"re.{name}.Helper"),
         ("re.frida.helper", f"re.{name}.helper"),
         ("re.frida.Gadget", f"re.{name}.Gadget"),
