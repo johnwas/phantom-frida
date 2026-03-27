@@ -148,8 +148,15 @@ def get_targeted_patches(name: str, cap_name: str, target: str) -> list[tuple[st
             ("helper_name = 'frida-helper'", f"helper_name = '{name}-helper'"),
             ("agent_name = 'frida-agent'", f"agent_name = '{name}-agent'"),
             ("gadget_name = 'frida-gadget'", f"gadget_name = '{name}-gadget'"),
-            ("'FRIDA_HELPER_PATH'", f"'{name.upper()}_HELPER_PATH'"),
-            ("'FRIDA_AGENT_PATH'", f"'{name.upper()}_AGENT_PATH'"),
+            # DISABLED: Renaming these Meson build defines breaks Vala conditional compilation.
+            # In Frida 17.x, FRIDA_HELPER_PATH is passed as --define=FRIDA_HELPER_PATH to the
+            # Vala compiler. The #if FRIDA_HELPER_PATH block in linux-host-session.vala assigns
+            # backend_class; renaming the define causes that block to be skipped, leaving
+            # backend_class=null and triggering: assert (backend_class != null) at line 679.
+            # These are internal build constants with no runtime-visible detection surface.
+            # See: docs/backend-class-null-analysis.md
+            # ("'FRIDA_HELPER_PATH'", f"'{name.upper()}_HELPER_PATH'"),
+            # ("'FRIDA_AGENT_PATH'", f"'{name.upper()}_AGENT_PATH'"),
             # Asset directory
             ("get_option('libdir') / 'frida'", f"get_option('libdir') / '{name}'"),
             # Gadget modulated (17.7.2 has this only in gadget meson)
