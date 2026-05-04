@@ -82,7 +82,7 @@ FRIDA_VERSION=17.7.2 CUSTOM_NAME=myserver CUSTOM_PORT=27142 EXTENDED=1 \
 --verify         Scan output for residual 'frida' strings
 --skip-build     Apply patches only, don't compile
 --skip-clone     Use existing source in work-dir
---ndk-path       Path to existing Android NDK r25
+--ndk-path       Path to existing Android NDK r29
 ```
 
 ## Deploy
@@ -133,7 +133,7 @@ test_comprehensive.js   Anti-detection + Java bridge verification script
 - Python 3.10+
 - Git, curl, unzip, make
 - ~20 GB free disk space
-- Android NDK r25c (auto-downloaded)
+- Android NDK r29 (auto-downloaded)
 
 ## Version Support
 

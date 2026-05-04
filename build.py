@@ -850,7 +850,7 @@ Detection vectors covered:
     parser.add_argument("--output-dir", "-o", default=None,
                         help="Output directory (default: ./output)")
     parser.add_argument("--ndk-path", default=None,
-                        help="Path to existing Android NDK r25 (skip download)")
+                        help="Path to existing Android NDK r29 (skip download)")
     parser.add_argument("--skip-clone", action="store_true",
                         help="Use existing source in work-dir")
     parser.add_argument("--skip-build", action="store_true",
