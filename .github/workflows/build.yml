@@ -126,6 +126,23 @@ jobs:
       - name: Apply patches and build
         run: ${{ steps.cmd.outputs.cmd }}
 
+      - name: Dump meson log on failure
+        if: failure()
+        run: |
+          LOG=build/frida/build/meson-logs/meson-log.txt
+          if [ -f "$LOG" ]; then
+            echo "=== meson-log.txt (last 200 lines) ==="
+            tail -200 "$LOG"
+          else
+            echo "meson-log.txt not found"
+          fi
+          echo ""
+          echo "=== compat/meson.build (patched) ==="
+          cat build/frida/subprojects/frida-core/compat/meson.build || true
+          echo ""
+          echo "=== compat/build.py (patched, first 80 lines) ==="
+          head -80 build/frida/subprojects/frida-core/compat/build.py || true
+
       - name: List artifacts
         run: |
           echo "=== Build artifacts ==="
