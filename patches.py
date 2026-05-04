@@ -120,7 +120,7 @@ def get_rollback_patches(name: str) -> list[tuple[str, str]]:
 def get_targeted_patches(name: str, cap_name: str, target: str) -> list[tuple[str, str]]:
     """
     Patches for specific build system files.
-    Verified against Frida 17.7.2 meson.build files.
+    Verified against Frida 17.7.2 meson.build files; compat_meson extended for 17.9+.
     """
     if target == "server_meson":
         # subprojects/frida-core/server/meson.build
@@ -131,6 +131,15 @@ def get_targeted_patches(name: str, cap_name: str, target: str) -> list[tuple[st
             ("'frida-server-universal'", f"'{name}-server-universal'"),
             # 17.7.2: server_name variable
             ("server_name = 'frida-server'", f"server_name = '{name}-server'"),
+        ]
+
+    elif target == "compat_meson":
+        # subprojects/frida-core/compat/meson.build
+        # Frida 17.9+ passes glib_flavor as a new argument: have_shared_glib ? 'upstream' : 'frida'
+        # This 'frida' is a choice enum in compat/build.py (not a branding string) and must stay literal.
+        # The global patch ("'frida'", "'{name}'") incorrectly renames it — restore it here.
+        return [
+            (f"? 'upstream' : '{name}'", "? 'upstream' : 'frida'"),
         ]
 
     elif target == "compat_build":

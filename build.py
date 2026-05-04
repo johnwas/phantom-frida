@@ -474,6 +474,7 @@ def apply_targeted_patches(frida_dir: Path, custom_name: str, frida_major: int):
     # --- Build system files ---
     targets = {
         "server_meson": core_dir / "server" / "meson.build",
+        "compat_meson": core_dir / "compat" / "meson.build",
         "compat_build": core_dir / "compat" / "build.py",
         "core_meson": core_dir / "meson.build",
         "gadget_meson": core_dir / "lib" / "gadget" / "meson.build",
